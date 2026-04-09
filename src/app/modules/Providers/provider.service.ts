@@ -54,10 +54,6 @@ const getProviderById = async (providerId: string) => {
     throw new AppError(HttpStatus.NOT_FOUND, "Provider not found");
   }
 
-  if (!provider.isApproved) {
-    throw new AppError(HttpStatus.FORBIDDEN, "Provider is not approved yet");
-  }
-
   return provider;
 };
 
@@ -178,7 +174,6 @@ const updateProfile = async (
   delete providerPayload.avgResponseTime;
   delete providerPayload.totalEarnings;
   delete providerPayload.totalJobs;
-  delete providerPayload.isApproved;
   delete providerPayload.stripeSubscriptionId;
   delete providerPayload.subscriptionTier;
 

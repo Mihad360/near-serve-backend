@@ -12,8 +12,6 @@ export interface IProvider {
   portfolio?: string[];
   subscriptionTier?: "free" | "pro";
   stripeSubscriptionId?: string;
-  isApproved?: boolean;
-  isAvailable?: boolean;
   totalEarnings?: number;
   totalJobs?: number;
   createdAt?: Date;

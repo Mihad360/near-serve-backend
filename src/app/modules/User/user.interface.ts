@@ -23,6 +23,8 @@ export interface IUser {
   fcmToken?: string[];
   isActive?: boolean;
   isVerified?: boolean;
+  isApproved?: boolean;
+  isAvailable?: boolean;
   isDeleted?: boolean;
   otp?: string;
   expiresAt?: Date;

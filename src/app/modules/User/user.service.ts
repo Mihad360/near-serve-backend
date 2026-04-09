@@ -41,12 +41,16 @@ const getUsers = async (query: Record<string, unknown>) => {
 // finds user first → uses userId to update provider
 // also updates user fields (name, phone, location) in user model
 const editProfile = async (
-  id: string,
-  file: Express.Multer.File,
+  userInfo: JwtPayload,
+  files: {
+    image?: Express.Multer.File[];
+    portfolio?: Express.Multer.File[];
+  },
   payload: Partial<
     IProvider & { name?: string; phone?: string; location?: object }
   >,
 ) => {
+  const id = new Types.ObjectId(userInfo.user);
   const user = await UserModel.findById(id);
 
   if (!user) {
@@ -57,25 +61,34 @@ const editProfile = async (
     throw new AppError(HttpStatus.FORBIDDEN, "This user is deleted");
   }
 
-  // handle portfolio image upload
-  if (file) {
-    const uploadResult = await sendFileToCloudinary(
-      file.buffer,
-      file.originalname,
-      file.mimetype,
+  // 🔹 Get existing provider
+  const existingProvider = await ProviderModel.findOne({ userId: user._id });
+
+  let portfolioUrls: string[] = existingProvider?.portfolio || [];
+
+  // ✅ Handle multiple portfolio uploads
+  if (files?.portfolio?.length) {
+    const uploaded = await Promise.all(
+      files.portfolio.map((file) =>
+        sendFileToCloudinary(file.buffer, file.originalname, file.mimetype),
+      ),
     );
 
-    const existingProvider = await ProviderModel.findOne({ userId: user._id });
-    payload.portfolio = [
-      ...(existingProvider?.portfolio || []),
-      uploadResult.secure_url,
-    ];
+    const newUrls = uploaded.map((img) => img.secure_url);
+
+    // append new images
+    portfolioUrls = [...portfolioUrls, ...newUrls];
   }
 
-  // split user fields from provider fields
+  // attach portfolio back to payload
+  if (files?.portfolio?.length) {
+    payload.portfolio = portfolioUrls;
+  }
+
+  // 🔹 split user fields from provider fields
   const { name, phone, location, ...providerPayload } = payload;
 
-  // update user fields if provided
+  // ✅ Update user fields
   if (name || phone || location) {
     await UserModel.findByIdAndUpdate(
       id,
@@ -86,25 +99,15 @@ const editProfile = async (
           ...(location && { location }),
         },
       },
-      { new: true, runValidators: true },
+      { new: true },
     );
   }
-
-  // prevent sensitive provider fields from being updated
-  delete providerPayload.trustScore;
-  delete providerPayload.completionRate;
-  delete providerPayload.avgResponseTime;
-  delete providerPayload.totalEarnings;
-  delete providerPayload.totalJobs;
-  delete providerPayload.isApproved;
-  delete providerPayload.stripeSubscriptionId;
-  delete providerPayload.subscriptionTier;
 
   const updatedProvider = await ProviderModel.findOneAndUpdate(
     { userId: user._id },
     { $set: providerPayload },
-    { new: true, runValidators: true },
-  ).populate("userId", "name email avatar phone location");
+    { new: true },
+  ).populate("userId", "name email phone location profileImage");
 
   return updatedProvider;
 };

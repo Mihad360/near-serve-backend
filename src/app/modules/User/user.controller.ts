@@ -29,9 +29,13 @@ const getUsers = catchAsync(async (req, res) => {
 
 const editProfile = catchAsync(async (req, res) => {
   const user = req.user as JwtPayload;
-  const id = user.user as string;
-  const file = req.file as Express.Multer.File;
-  const result = await userServices.editProfile(id, file, req.body);
+
+  const files = req.files as {
+    image?: Express.Multer.File[];
+    portfolio?: Express.Multer.File[];
+  };
+
+  const result = await userServices.editProfile(user, files, req.body);
 
   sendResponse(res, {
     statusCode: HttpStatus.OK,

@@ -39,7 +39,6 @@ const userSchema = new Schema<IUser>(
     password: {
       type: String,
       required: true,
-      select: false,
     },
     name: {
       type: String,
@@ -75,6 +74,14 @@ const userSchema = new Schema<IUser>(
     isVerified: {
       type: Boolean,
       default: false,
+    },
+    isApproved: {
+      type: Boolean,
+      default: false, // admin must approve first
+    },
+    isAvailable: {
+      type: Boolean,
+      default: true,
     },
     isDeleted: {
       type: Boolean,

@@ -15,6 +15,56 @@ import { createNotification } from "../Notification/notification.utils";
 import { sendPushNotifications } from "../../utils/firebase/notification";
 import { createToken, verifyToken } from "../../utils/jwt/jwt";
 
+const createUser = async (payload: IUser) => {
+  /* ------------------ Check if user already exists ------------------ */
+  const isUserExist = await UserModel.findOne({ email: payload.email });
+  if (isUserExist) {
+    throw new AppError(HttpStatus.BAD_REQUEST, "The same user already exists");
+  }
+
+  /* ------------------ Create user ------------------ */
+  const result = await UserModel.create(payload);
+
+  if (!result) {
+    throw new AppError(HttpStatus.BAD_REQUEST, "User creation failed");
+  }
+
+  /* ------------------ Generate OTP ------------------ */
+  const otp = generateOtp();
+  const expireAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+  /* ------------------ Update user with OTP ------------------ */
+  const updatedUser = await UserModel.findByIdAndUpdate(
+    result._id,
+    {
+      otp,
+      expiresAt: expireAt,
+    },
+    { new: true },
+  ).select("-password -otp -passwordChangedAt");
+
+  if (!updatedUser) {
+    throw new AppError(HttpStatus.BAD_REQUEST, "Failed to update OTP");
+  }
+
+  /* ------------------ Send OTP via email ------------------ */
+  const subject = "Verification Code";
+  const mail = await sendEmail(
+    result.email,
+    subject,
+    verificationEmailTemplate(result.email, otp as string),
+  );
+  if (!mail) {
+    throw new AppError(
+      HttpStatus.BAD_REQUEST,
+      "Something went wrong while sending OTP",
+    );
+  }
+
+  /* ------------------ Return safe user data ------------------ */
+  return updatedUser;
+};
+
 const loginUser = async (payload: IAuth) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -245,7 +295,7 @@ const verifyOtp = async (payload: { email: string; otp: string }) => {
       "3m",
     );
 
-    return { accessToken, email: check.email };
+    return { accessToken, email: check.email, role: check.role };
   }
 };
 
@@ -475,6 +525,7 @@ const refreshToken = async (token: string) => {
 };
 
 export const authServices = {
+  createUser,
   loginUser,
   forgetPassword,
   resetPassword,

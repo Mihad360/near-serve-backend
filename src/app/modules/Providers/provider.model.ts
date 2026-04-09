@@ -48,14 +48,6 @@ const providerSchema = new Schema<IProvider>(
       type: String,
       default: null,
     },
-    isApproved: {
-      type: Boolean,
-      default: false, // admin must approve first
-    },
-    isAvailable: {
-      type: Boolean,
-      default: true,
-    },
     totalEarnings: {
       type: Number,
       default: 0,

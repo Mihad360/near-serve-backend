@@ -19,5 +19,6 @@ router.post(
   authControllers.changePassword,
 );
 router.post("/refresh-token", authControllers.refreshToken);
+router.post("/create", authControllers.createUser);
 
 export const AuthRoutes = router;

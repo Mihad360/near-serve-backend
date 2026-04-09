@@ -5,6 +5,17 @@ import sendResponse from "../../utils/sendResponse";
 import { Types } from "mongoose";
 import { JwtPayload } from "../../interface/global";
 
+const createUser = catchAsync(async (req, res) => {
+  const result = await authServices.createUser(req.body);
+
+  sendResponse(res, {
+    statusCode: HttpStatus.OK,
+    success: true,
+    message: "Password reset OTP sent to email",
+    data: result,
+  });
+});
+
 const loginUser = catchAsync(async (req, res) => {
   const result = await authServices.loginUser(req.body);
   const { accessToken, role, _id, user } = result;
@@ -103,6 +114,7 @@ const refreshToken = catchAsync(async (req, res) => {
 });
 
 export const authControllers = {
+  createUser,
   loginUser,
   forgetPassword,
   verifyOtp,
