@@ -14,6 +14,7 @@ import { INotification } from "../Notification/notification.interface";
 import { createNotification } from "../Notification/notification.utils";
 import { sendPushNotifications } from "../../utils/firebase/notification";
 import { createToken, verifyToken } from "../../utils/jwt/jwt";
+import { ProviderModel } from "../Providers/provider.model";
 
 const createUser = async (payload: IUser) => {
   /* ------------------ Check if user already exists ------------------ */
@@ -29,9 +30,19 @@ const createUser = async (payload: IUser) => {
     throw new AppError(HttpStatus.BAD_REQUEST, "User creation failed");
   }
 
+  /* ------------------ If provider, create default Provider doc ------------------ */
+  if (result.role === "provider") {
+    await ProviderModel.create({
+      userId: result._id,
+      categories: [],
+      bio: null,
+      portfolio: [],
+    });
+  }
+
   /* ------------------ Generate OTP ------------------ */
   const otp = generateOtp();
-  const expireAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+  const expireAt = new Date(Date.now() + 5 * 60 * 1000);
 
   /* ------------------ Update user with OTP ------------------ */
   const updatedUser = await UserModel.findByIdAndUpdate(
@@ -54,6 +65,7 @@ const createUser = async (payload: IUser) => {
     subject,
     verificationEmailTemplate(result.email, otp as string),
   );
+
   if (!mail) {
     throw new AppError(
       HttpStatus.BAD_REQUEST,

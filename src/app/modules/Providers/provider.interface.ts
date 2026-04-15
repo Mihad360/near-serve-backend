@@ -6,6 +6,7 @@ export interface IProvider {
   userId: Types.ObjectId; // ref to User
   categories: string[];
   bio?: string;
+  description?: string;
   trustScore?: number;
   completionRate?: number;
   avgResponseTime?: number;

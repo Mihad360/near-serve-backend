@@ -19,6 +19,11 @@ const providerSchema = new Schema<IProvider>(
       trim: true,
       default: null,
     },
+    description: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     trustScore: {
       type: Number,
       default: 0,

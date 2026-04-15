@@ -23,7 +23,7 @@ const getUsers = async (query: Record<string, unknown>) => {
   const userQuery = new QueryBuilder(
     UserModel.find(
       { isDeleted: false },
-      "-fcmToken -password -otp -expiresAt -isVerified -passwordChangedAt -currentSubscriptionId -hasActiveSubscription",
+      "-fcmToken -password -otp -expiresAt -isVerified -passwordChangedAt",
     ),
     query,
   )
