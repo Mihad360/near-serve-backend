@@ -15,7 +15,7 @@ const conversationSchema = new Schema<IConversation>(
     },
     providerId: {
       type: Schema.Types.ObjectId,
-      ref: "Provider",
+      ref: "User",
       required: true,
     },
     lastMessage: {

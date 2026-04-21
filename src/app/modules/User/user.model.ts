@@ -2,18 +2,6 @@ import { Schema, model } from "mongoose";
 import bcrypt from "bcrypt";
 import { ILocation, IUser, UserInterface } from "./user.interface";
 
-const profileImageSchema = new Schema(
-  {
-    path: {
-      type: String,
-    },
-    url: {
-      type: String,
-    },
-  },
-  { _id: false },
-);
-
 const locationSchema = new Schema<ILocation>(
   {
     type: {
@@ -49,7 +37,7 @@ const userSchema = new Schema<IUser>(
       default: null,
     },
     profileImage: {
-      type: profileImageSchema,
+      type: String,
     },
     role: {
       type: String,

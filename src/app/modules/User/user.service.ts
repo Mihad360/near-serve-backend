@@ -51,6 +51,8 @@ const editProfile = async (
   >,
 ) => {
   const id = new Types.ObjectId(userInfo.user);
+  const userRole = userInfo.role;
+
   const user = await UserModel.findById(id);
 
   if (!user) {
@@ -61,34 +63,24 @@ const editProfile = async (
     throw new AppError(HttpStatus.FORBIDDEN, "This user is deleted");
   }
 
-  // 🔹 Get existing provider
-  const existingProvider = await ProviderModel.findOne({ userId: user._id });
-
-  let portfolioUrls: string[] = existingProvider?.portfolio || [];
-
-  // ✅ Handle multiple portfolio uploads
-  if (files?.portfolio?.length) {
-    const uploaded = await Promise.all(
-      files.portfolio.map((file) =>
-        sendFileToCloudinary(file.buffer, file.originalname, file.mimetype),
-      ),
+  // ─── Handle profile image upload (both customer and provider) ────────────
+  if (files?.image?.length) {
+    const uploadResult = await sendFileToCloudinary(
+      files.image[0].buffer,
+      files.image[0].originalname,
+      files.image[0].mimetype,
     );
-
-    const newUrls = uploaded.map((img) => img.secure_url);
-
-    // append new images
-    portfolioUrls = [...portfolioUrls, ...newUrls];
+    await UserModel.findByIdAndUpdate(
+      id,
+      { $set: { profileImage: uploadResult.secure_url } },
+      { new: true },
+    );
   }
 
-  // attach portfolio back to payload
-  if (files?.portfolio?.length) {
-    payload.portfolio = portfolioUrls;
-  }
-
-  // 🔹 split user fields from provider fields
+  // ─── Split user fields from provider fields ───────────────────────────────
   const { name, phone, location, ...providerPayload } = payload;
 
-  // ✅ Update user fields
+  // ─── Update user fields (both roles) ─────────────────────────────────────
   if (name || phone || location) {
     await UserModel.findByIdAndUpdate(
       id,
@@ -103,13 +95,47 @@ const editProfile = async (
     );
   }
 
-  const updatedProvider = await ProviderModel.findOneAndUpdate(
-    { userId: user._id },
-    { $set: providerPayload },
-    { new: true },
-  ).populate("userId", "name email phone location profileImage");
+  // ─── If customer — stop here, return updated user ─────────────────────────
+  if (userRole === "customer") {
+    const updatedUser = await UserModel.findById(id).select(
+      "-password -otp -expiresAt -passwordChangedAt -fcmToken",
+    );
+    return updatedUser;
+  }
 
-  return updatedProvider;
+  // ─── If provider — also update provider doc ───────────────────────────────
+  if (userRole === "provider") {
+    const existingProvider = await ProviderModel.findOne({ userId: user._id });
+
+    // ─── Handle portfolio upload (provider only) ──────────────────────────
+    if (files?.portfolio?.length) {
+      const uploaded = await Promise.all(
+        files.portfolio.map((file) =>
+          sendFileToCloudinary(file.buffer, file.originalname, file.mimetype),
+        ),
+      );
+      const newUrls = uploaded.map((img) => img.secure_url);
+      providerPayload.portfolio = [
+        ...(existingProvider?.portfolio || []),
+        ...newUrls,
+      ];
+    }
+
+    // normalize categories to lowercase if provided
+    if (providerPayload.categories) {
+      providerPayload.categories = providerPayload.categories.map((c: string) =>
+        c.toLowerCase(),
+      );
+    }
+
+    const updatedProvider = await ProviderModel.findOneAndUpdate(
+      { userId: user._id },
+      { $set: providerPayload },
+      { new: true, upsert: true },
+    ).populate("userId", "name email phone location profileImage");
+
+    return updatedProvider;
+  }
 };
 
 export const userServices = {

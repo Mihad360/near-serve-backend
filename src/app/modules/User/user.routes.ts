@@ -9,10 +9,10 @@ router.get("/", userControllers.getUsers);
 router.get("/me", auth("admin", "customer"), userControllers.getMe);
 router.patch(
   "/edit-profile",
-  auth("admin", "customer", "provider"),
+  auth("customer", "provider"),
   upload.fields([
-    { name: "image", maxCount: 1 }, // profile image
-    { name: "portfolio", maxCount: 10 }, // multiple portfolio images
+    { name: "image", maxCount: 1 },
+    { name: "portfolio", maxCount: 5 },
   ]),
   (req: Request, res: Response, next: NextFunction) => {
     if (req.body.data) {

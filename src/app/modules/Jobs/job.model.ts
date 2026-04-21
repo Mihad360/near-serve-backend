@@ -1,32 +1,9 @@
+// backend/src/modules/Job/job.model.ts
+
 import { model, Schema } from "mongoose";
 import { IJob } from "./job.interface";
 import { ILocation } from "../User/user.interface";
-import { IPayment } from "../Payment/payment.interface";
 
-const paymentSchema = new Schema<IPayment>(
-  {
-    stripePaymentIntentId: {
-      type: String,
-      default: null,
-    },
-    amount: {
-      type: Number,
-      default: 0,
-    },
-    currency: {
-      type: String,
-      default: "usd",
-    },
-    status: {
-      type: String,
-      enum: ["pending", "authorized", "captured", "refunded", "failed"],
-      default: "pending",
-    },
-  },
-  { _id: false },
-);
-
-// ─── Location Sub-schema ─────────────────────────────────────────────────────
 const locationSchema = new Schema<ILocation>(
   {
     type: {
@@ -42,13 +19,11 @@ const locationSchema = new Schema<ILocation>(
   { _id: false },
 );
 
-// ─── Job Schema ──────────────────────────────────────────────────────────────
 const jobSchema = new Schema<IJob>(
   {
     customerId: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
     },
     selectedProvider: {
       type: Schema.Types.ObjectId,
@@ -98,10 +73,6 @@ const jobSchema = new Schema<IJob>(
       ],
       default: "open",
     },
-    payment: {
-      type: paymentSchema,
-      default: () => ({}),
-    },
     scheduledAt: {
       type: Date,
       required: true,
@@ -115,5 +86,8 @@ const jobSchema = new Schema<IJob>(
     timestamps: true,
   },
 );
+
+// ─── Indexes ──────────────────────────────────────────────────────────────────
+jobSchema.index({ location: "2dsphere" });
 
 export const JobModel = model<IJob>("Job", jobSchema);

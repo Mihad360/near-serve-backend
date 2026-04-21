@@ -1,10 +1,5 @@
 import { Model, Types } from "mongoose";
 
-interface ProfileImage {
-  path: string; // e.g., "images/1234567890-profile.jpg"
-  url: string; // e.g., "http://localhost:5000/images/1234567890-profile.jpg"
-}
-
 export interface ILocation {
   type: "Point";
   coordinates: [number, number]; // [longitude, latitude]
@@ -16,7 +11,7 @@ export interface IUser {
   password: string;
   name?: string;
   phone?: string; // NEW — booking contact
-  profileImage?: ProfileImage | string;
+  profileImage?: string;
   role: "customer" | "provider" | "admin"; // UPDATED — added customer & provider
   location?: ILocation; // NEW — geo-search
   stripeCustomerId?: string; // NEW — Stripe payments

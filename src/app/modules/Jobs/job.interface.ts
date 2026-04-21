@@ -1,29 +1,19 @@
+// backend/src/modules/Job/job.interface.ts
+
 import { Types } from "mongoose";
 
-// ─── Payment Sub-interface ───────────────────────────────────────────────────
-interface IPayment {
-  stripePaymentIntentId?: string;
-  amount?: number;
-  currency?: string;
-  status?: "pending" | "authorized" | "captured" | "refunded" | "failed";
-}
-
-// ─── Location Sub-interface ──────────────────────────────────────────────────
-interface ILocation {
-  type: "Point";
-  coordinates: [number, number]; // [longitude, latitude]
-}
-
-// ─── Job Interface ───────────────────────────────────────────────────────────
 export interface IJob {
   _id?: Types.ObjectId;
-  customerId: Types.ObjectId; // ref to User
-  selectedProvider?: Types.ObjectId; // ref to Provider
-  selectedBid?: Types.ObjectId; // ref to Bid
+  customerId: Types.ObjectId;
+  selectedProvider?: Types.ObjectId | null;
+  selectedBid?: Types.ObjectId | null;
   title: string;
   description: string;
   category: string;
-  location: ILocation;
+  location: {
+    type: "Point";
+    coordinates: [number, number];
+  };
   budget: number;
   status?:
     | "open"
@@ -33,9 +23,8 @@ export interface IJob {
     | "completed"
     | "disputed"
     | "cancelled";
-  payment?: IPayment;
   scheduledAt: Date;
-  expiresAt?: Date;
+  expiresAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
