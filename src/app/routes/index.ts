@@ -6,6 +6,8 @@ import { adminRoutes } from "../modules/Admin/admin.route";
 import { jobRoutes } from "../modules/Jobs/job.route";
 import { bidRoutes } from "../modules/Bid/bid.route";
 import { conversationRoutes } from "../modules/Conversation/conversation.route";
+import { messageRoutes } from "../modules/Message/message.route";
+import { reviewRoutes } from "../modules/Review/review.route";
 
 const router = Router();
 
@@ -37,6 +39,14 @@ const moduleRoutes = [
   {
     path: "/conversation",
     route: conversationRoutes,
+  },
+  {
+    path: "/message",
+    route: messageRoutes,
+  },
+  {
+    path: "/review",
+    route: reviewRoutes,
   },
 ];
 

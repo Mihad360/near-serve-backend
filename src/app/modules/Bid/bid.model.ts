@@ -23,6 +23,11 @@ const bidSchema = new Schema<IBid>(
       required: true,
       min: 0,
     },
+    // bid.model.ts — add this field
+    responseTimeMinutes: {
+      type: Number,
+      default: null,
+    },
     message: {
       type: String,
       trim: true,

@@ -61,14 +61,7 @@ const paymentSchema = new Schema<IPayment>(
   {
     timestamps: true,
   },
-);
-
-// ─── Indexes ──────────────────────────────────────────────────────────────────
-paymentSchema.index({ jobId: 1 });
-paymentSchema.index({ customerId: 1 });
-paymentSchema.index({ providerId: 1 });
-paymentSchema.index({ status: 1 });
-paymentSchema.index({ stripePaymentIntentId: 1 });
+)
 
 // ─── Model ───────────────────────────────────────────────────────────────────
 export const PaymentModel = model<IPayment>("Payment", paymentSchema);

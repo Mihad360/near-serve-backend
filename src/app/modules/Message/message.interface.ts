@@ -1,13 +1,21 @@
+// message.interface.ts
+
 import { Types } from "mongoose";
 
-// ─── Message Interface ───────────────────────────────────────────────────────
+export interface IAttachment {
+  url: string;
+  type: "image" | "audio" | "document";
+  name: string;
+  size?: number;
+}
+
 export interface IMessage {
   _id?: Types.ObjectId;
-  conversationId: Types.ObjectId; // ref to Conversation
-  senderId: Types.ObjectId; // ref to User
-  content: string;
-  messageType?: "text" | "image" | "location";
-  attachmentUrl?: string;
+  conversationId: Types.ObjectId;
+  senderId: Types.ObjectId;
+  content?: string;
+  messageType: "text" | "image" | "audio" | "document" | "location";
+  attachments?: IAttachment[]; // CHANGED — array now
   isRead?: boolean;
   isDeleted?: boolean;
   createdAt?: Date;

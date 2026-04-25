@@ -32,15 +32,15 @@ export const sendFileToCloudinary = (
       cloudinary.uploader.upload(
         dataUri,
         {
-          public_id: nameWithoutExt,
+          public_id: `${Date.now()}-${nameWithoutExt}`,
           resource_type: "image",
-          type: "upload",
-          folder: "near-serve",
+          folder: `${config.CLOUDINARY_FOLDER_NAME}/images`,
+          transformation: [{ quality: "auto" }, { fetch_format: "auto" }],
         },
         (error, result) => {
           if (error) return reject(error);
           if (!result) return reject(new Error("No result"));
-          resolve(result);
+          return resolve(result);
         },
       );
     }
@@ -54,15 +54,18 @@ export const sendFileToCloudinary = (
       mimetype ===
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     ) {
+      const ext = path.extname(fileName);
+      const safeName = nameWithoutExt.replace(/[^a-zA-Z0-9-_]/g, "");
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          public_id: fileName,
+          public_id: `${Date.now()}-${safeName}${ext}`,
           resource_type: "raw",
+          folder: `${config.CLOUDINARY_FOLDER_NAME}/docs`,
         },
         (error, result) => {
           if (error) return reject(error);
           if (!result) return reject(new Error("No result"));
-          resolve(result);
+          return resolve(result);
         },
       );
       uploadStream.end(fileBuffer);
@@ -75,14 +78,15 @@ export const sendFileToCloudinary = (
     else if (mimetype.startsWith("audio/")) {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          public_id: nameWithoutExt,
+          public_id: `${Date.now()}-${nameWithoutExt}`,
           resource_type: "video", // REQUIRED for audio files
-          type: "upload",
+          folder: `${config.CLOUDINARY_FOLDER_NAME}/audio`,
+          transformation: [{ quality: "auto" }, { fetch_format: "auto" }],
         },
         (error, result) => {
           if (error) return reject(error);
           if (!result) return reject(new Error("No result"));
-          resolve(result);
+          return resolve(result);
         },
       );
       uploadStream.end(fileBuffer);
@@ -92,7 +96,7 @@ export const sendFileToCloudinary = (
     // ❌ Unsupported file
     // ============================
     else {
-      return reject(new Error("Unsupported file type"));
+      return reject(new Error(`Unsupported file type: ${mimetype}`));
     }
   });
 };
@@ -102,4 +106,26 @@ const storage: StorageEngine = multer.memoryStorage();
 
 export const upload = multer({
   storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      "image/",
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "audio/",
+    ];
+
+    const isAllowed = allowedTypes.some((type) =>
+      file.mimetype.startsWith(type),
+    );
+
+    if (!isAllowed) {
+      return cb(new Error("Invalid file type"));
+    }
+
+    cb(null, true);
+  },
 });

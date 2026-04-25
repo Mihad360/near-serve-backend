@@ -1,5 +1,30 @@
+// message.model.ts
+
 import { model, Schema } from "mongoose";
-import { IMessage } from "./message.interface";
+import { IAttachment, IMessage } from "./message.interface";
+
+const attachmentSchema = new Schema<IAttachment>(
+  {
+    url: {
+      type: String,
+      required: true,
+    },
+    type: {
+      type: String,
+      enum: ["image", "audio", "document"],
+      required: true,
+    },
+    name: {
+      type: String,
+      required: true,
+    },
+    size: {
+      type: Number,
+      default: null,
+    },
+  },
+  { _id: false },
+);
 
 const messageSchema = new Schema<IMessage>(
   {
@@ -15,17 +40,17 @@ const messageSchema = new Schema<IMessage>(
     },
     content: {
       type: String,
-      required: true,
       trim: true,
+      default: null,
     },
     messageType: {
       type: String,
-      enum: ["text", "image", "location"],
+      enum: ["text", "image", "audio", "document", "location"],
       default: "text",
     },
-    attachmentUrl: {
-      type: String, // Cloudinary URL for image messages
-      default: null,
+    attachments: {
+      type: [attachmentSchema], // CHANGED — array
+      default: [],
     },
     isRead: {
       type: Boolean,
@@ -33,12 +58,10 @@ const messageSchema = new Schema<IMessage>(
     },
     isDeleted: {
       type: Boolean,
-      default: false, // soft delete
+      default: false,
     },
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true },
 );
 
 export const MessageModel = model<IMessage>("Message", messageSchema);

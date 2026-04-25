@@ -7,6 +7,8 @@ export interface IBid {
   providerId: Types.ObjectId; // ref to Provider
   price: number;
   etaMinutes: number;
+  // bid.interface.ts — add this field
+  responseTimeMinutes?: number;
   message?: string;
   status?: "pending" | "accepted" | "rejected" | "withdrawn";
   isRead?: boolean;

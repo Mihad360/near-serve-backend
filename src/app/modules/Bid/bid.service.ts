@@ -12,7 +12,6 @@ import { ProviderModel } from "../Providers/provider.model";
 import { UserModel } from "../User/user.model";
 import { ConversationModel } from "../Conversation/conversation.model";
 
-// ─── Submit Bid (provider) ────────────────────────────────────────────────────
 const submitBid = async (
   user: JwtPayload,
   jobId: string,
@@ -20,13 +19,11 @@ const submitBid = async (
 ) => {
   const userId = new Types.ObjectId(user.user);
 
-  // get provider
   const provider = await ProviderModel.findOne({ userId });
   if (!provider) {
     throw new AppError(HttpStatus.NOT_FOUND, "Provider profile not found");
   }
 
-  // check provider is approved and available
   const providerUser = await UserModel.findById(userId);
   if (!providerUser?.isApproved) {
     throw new AppError(
@@ -35,13 +32,11 @@ const submitBid = async (
     );
   }
 
-  // check job exists
   const job = await JobModel.findById(jobId);
   if (!job) {
     throw new AppError(HttpStatus.NOT_FOUND, "Job not found");
   }
 
-  // job must be open or bidding
   if (!["open", "bidding"].includes(job.status as string)) {
     throw new AppError(
       HttpStatus.BAD_REQUEST,
@@ -49,7 +44,6 @@ const submitBid = async (
     );
   }
 
-  // provider cannot bid on their own non-relevant category
   if (!provider.categories.includes(job.category)) {
     throw new AppError(
       HttpStatus.BAD_REQUEST,
@@ -57,7 +51,6 @@ const submitBid = async (
     );
   }
 
-  // provider cannot bid twice on same job
   const alreadyBid = await BidModel.findOne({
     jobId: new Types.ObjectId(jobId),
     providerId: provider._id,
@@ -66,15 +59,41 @@ const submitBid = async (
     throw new AppError(HttpStatus.CONFLICT, "You have already bid on this job");
   }
 
-  // create bid
+  // ─── Calculate response time ───────────────────────────────────────────────
+  const responseTimeMinutes = Math.round(
+    (Date.now() - new Date(job.createdAt as Date).getTime()) / 60000,
+  );
+
+  // create bid with response time
   const bid = await BidModel.create({
     ...payload,
     jobId: new Types.ObjectId(jobId),
     providerId: provider._id,
     status: "pending",
+    responseTimeMinutes,
   });
 
-  // if this is the first bid — update job status from open to bidding
+  // ─── Update provider avgResponseTime ──────────────────────────────────────
+  const allProviderBids = await BidModel.find({
+    providerId: provider._id,
+    status: { $ne: "withdrawn" },
+    responseTimeMinutes: { $ne: null },
+  });
+
+  const totalTime = allProviderBids.reduce(
+    (sum, b) => sum + (b.responseTimeMinutes || 0),
+    0,
+  );
+
+  const avgResponseTime = Math.round(totalTime / allProviderBids.length);
+
+  await ProviderModel.findByIdAndUpdate(
+    provider._id,
+    { $set: { avgResponseTime } },
+    { new: true },
+  );
+
+  // if first bid — update job status to bidding
   if (job.status === "open") {
     await JobModel.findByIdAndUpdate(
       jobId,

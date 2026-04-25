@@ -6,6 +6,7 @@ import AppError from "../../erros/AppError";
 import QueryBuilder from "../../../builder/QueryBuilder";
 import { IJob } from "./job.interface";
 import { ProviderModel } from "../Providers/provider.model";
+import { UserModel } from "../User/user.model";
 
 // ─── Create Job (customer) ────────────────────────────────────────────────────
 const createJob = async (user: JwtPayload, payload: Partial<IJob>) => {
@@ -49,7 +50,6 @@ const getMyJobs = async (user: JwtPayload, query: Record<string, unknown>) => {
 const getJobFeed = async (user: JwtPayload, query: Record<string, unknown>) => {
   const userId = new Types.ObjectId(user.user);
 
-  // get provider categories
   const provider = await ProviderModel.findOne({ userId });
   if (!provider) {
     throw new AppError(HttpStatus.NOT_FOUND, "Provider profile not found");
@@ -62,20 +62,61 @@ const getJobFeed = async (user: JwtPayload, query: Record<string, unknown>) => {
     );
   }
 
-  const jobQuery = new QueryBuilder(
-    JobModel.find({
-      status: { $in: ["open", "bidding"] },
-      category: { $in: provider.categories },
-    }).populate("customerId", "name avatar location"),
+  // get provider location from user model
+  const providerUser = await UserModel.findById(userId).select(
+    "location isApproved",
+  );
+
+  if (!providerUser?.isApproved) {
+    throw new AppError(
+      HttpStatus.FORBIDDEN,
+      "Your account is not approved yet",
+    );
+  }
+
+  // normalize categories
+  const normalizedCategories = provider.categories.map((c) => c.toLowerCase());
+
+  // radius — default 20km, can pass ?radius=50
+  const radiusKm = Number(query.radius) || 20;
+  const radiusInMeters = radiusKm * 1000;
+
+  const providerCoords = providerUser?.location?.coordinates;
+  const hasLocation =
+    providerCoords && !(providerCoords[0] === 0 && providerCoords[1] === 0);
+
+  const baseFilter: Record<string, unknown> = {
+    status: { $in: ["open", "bidding"] },
+    category: { $in: normalizedCategories },
+  };
+
+  if (hasLocation) {
+    baseFilter.location = {
+      $near: {
+        $geometry: {
+          type: "Point",
+          coordinates: providerCoords,
+        },
+        $maxDistance: radiusInMeters,
+      },
+    };
+  }
+
+  // skip sort when geo filter active — $near already sorts by distance
+  let builder = new QueryBuilder(
+    JobModel.find(baseFilter).populate("customerId", "name avatar location"),
     query,
   )
     .filter()
-    .sort()
     .paginate()
     .fields();
 
-  const meta = await jobQuery.countTotal();
-  const result = await jobQuery.modelQuery;
+  if (!hasLocation) {
+    builder = builder.sort();
+  }
+
+  const meta = await builder.countTotal();
+  const result = await builder.modelQuery;
 
   return { meta, result };
 };
@@ -92,6 +133,33 @@ const getJobById = async (jobId: string) => {
   }
 
   return job;
+};
+
+// ─── Helper — update provider stats after job completion ─────────────────────
+const updateProviderStats = async (providerId: Types.ObjectId) => {
+  const completedJobs = await JobModel.countDocuments({
+    selectedProvider: providerId,
+    status: "completed",
+  });
+
+  const totalAcceptedJobs = await JobModel.countDocuments({
+    selectedProvider: providerId,
+    status: { $in: ["completed", "cancelled", "disputed"] },
+  });
+
+  const completionRate =
+    totalAcceptedJobs > 0
+      ? Math.round((completedJobs / totalAcceptedJobs) * 100)
+      : 0;
+
+  await ProviderModel.findByIdAndUpdate(
+    providerId,
+    {
+      $set: { completionRate },
+      $inc: { totalJobs: 1 },
+    },
+    { new: true },
+  );
 };
 
 // ─── Update Job Status ────────────────────────────────────────────────────────
@@ -112,11 +180,10 @@ const updateJobStatus = async (
 
   // ─── Validate transitions ──────────────────────────────────────────────────
   const allowedTransitions: Record<string, string[]> = {
-    booked: ["in_progress"], // provider only
-    in_progress: ["completed", "disputed"], // customer only
+    booked: ["in_progress"],
+    in_progress: ["completed", "disputed"],
   };
 
-  // check if transition is valid
   if (
     allowedTransitions[currentStatus as string] &&
     !allowedTransitions[currentStatus as string].includes(newStatus as string)
@@ -135,7 +202,6 @@ const updateJobStatus = async (
         "Only provider can mark job as in progress",
       );
     }
-    // make sure this provider is the selected one
     const provider = await ProviderModel.findOne({
       userId: new Types.ObjectId(userId),
     });
@@ -171,6 +237,11 @@ const updateJobStatus = async (
     { new: true },
   );
 
+  // ─── Update provider stats when job completed ──────────────────────────────
+  if (newStatus === "completed" && job.selectedProvider) {
+    await updateProviderStats(job.selectedProvider as Types.ObjectId);
+  }
+
   return updated;
 };
 
@@ -191,7 +262,6 @@ const cancelJob = async (user: JwtPayload, jobId: string) => {
     );
   }
 
-  // can only cancel if open or bidding
   if (!["open", "bidding"].includes(job.status as string)) {
     throw new AppError(
       HttpStatus.BAD_REQUEST,
