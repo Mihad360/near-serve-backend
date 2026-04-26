@@ -7,9 +7,13 @@ export interface IPayment {
   customerId: Types.ObjectId; // ref to User
   providerId: Types.ObjectId; // ref to Provider
   stripePaymentIntentId: string;
+  stripeSessionId?: string;
   amount: number;
   currency?: string;
   status?: "pending" | "authorized" | "captured" | "refunded" | "failed";
+  commissionRate?: number; // NEW — percentage e.g. 10
+  commissionAmount?: number; // NEW — admin earnings e.g. 10
+  providerPayout?: number; // NEW — provider gets e.g. 90
   refundAmount?: number;
   refundReason?: string;
   refundedAt?: Date;

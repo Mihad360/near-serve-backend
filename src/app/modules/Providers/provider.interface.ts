@@ -13,6 +13,8 @@ export interface IProvider {
   portfolio?: string[];
   subscriptionTier?: "free" | "pro";
   stripeSubscriptionId?: string;
+  stripeAccountId?: string;
+  stripeAccountStatus?: "pending" | "active" | "restricted";
   totalEarnings?: number;
   totalJobs?: number;
   createdAt?: Date;

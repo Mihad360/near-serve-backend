@@ -20,8 +20,10 @@ const paymentSchema = new Schema<IPayment>(
     },
     stripePaymentIntentId: {
       type: String,
-      required: true,
-      unique: true,
+    },
+    stripeSessionId: {
+      type: String,
+      default: null,
     },
     amount: {
       type: Number,
@@ -36,6 +38,20 @@ const paymentSchema = new Schema<IPayment>(
       type: String,
       enum: ["pending", "authorized", "captured", "refunded", "failed"],
       default: "pending",
+    },
+    // payment.model.ts — add these fields inside schema
+
+    commissionRate: {
+      type: Number,
+      default: 0,
+    },
+    commissionAmount: {
+      type: Number,
+      default: 0,
+    },
+    providerPayout: {
+      type: Number,
+      default: 0,
     },
     refundAmount: {
       type: Number,
@@ -61,7 +77,7 @@ const paymentSchema = new Schema<IPayment>(
   {
     timestamps: true,
   },
-)
+);
 
 // ─── Model ───────────────────────────────────────────────────────────────────
 export const PaymentModel = model<IPayment>("Payment", paymentSchema);

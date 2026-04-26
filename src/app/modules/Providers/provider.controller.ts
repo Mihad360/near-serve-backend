@@ -4,6 +4,7 @@ import HttpStatus from "http-status";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
 import { providerServices } from "./provider.service";
+import { JwtPayload } from "../../interface/global";
 
 const getProviderById = catchAsync(async (req, res) => {
   const result = await providerServices.getProviderById(req.params.providerId);
@@ -34,7 +35,46 @@ const searchNearbyProviders = catchAsync(async (req, res) => {
   });
 });
 
+const createStripeAccount = catchAsync(async (req, res) => {
+  const result = await providerServices.createStripeAccount(
+    req.user as JwtPayload,
+  );
+  sendResponse(res, {
+    statusCode: HttpStatus.CREATED,
+    success: true,
+    message: "Stripe account created successfully",
+    data: result,
+  });
+});
+
+const getStripeOnboardingLink = catchAsync(async (req, res) => {
+  const result = await providerServices.getStripeOnboardingLink(
+    req.user as JwtPayload,
+  );
+  sendResponse(res, {
+    statusCode: HttpStatus.OK,
+    success: true,
+    message: "Onboarding link generated",
+    data: result,
+  });
+});
+
+const checkStripeAccountStatus = catchAsync(async (req, res) => {
+  const result = await providerServices.checkStripeAccountStatus(
+    req.user as JwtPayload,
+  );
+  sendResponse(res, {
+    statusCode: HttpStatus.OK,
+    success: true,
+    message: "Stripe account status retrieved",
+    data: result,
+  });
+});
+
 export const providerControllers = {
   getProviderById,
   searchNearbyProviders,
+  createStripeAccount,
+  getStripeOnboardingLink,
+  checkStripeAccountStatus,
 };

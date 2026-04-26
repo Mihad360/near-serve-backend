@@ -53,6 +53,15 @@ const providerSchema = new Schema<IProvider>(
       type: String,
       default: null,
     },
+    stripeAccountId: {
+      type: String,
+      default: null,
+    },
+    stripeAccountStatus: {
+      type: String,
+      enum: ["pending", "active", "restricted"],
+      default: "pending",
+    },
     totalEarnings: {
       type: Number,
       default: 0,

@@ -8,13 +8,22 @@ import path from "path";
 import { template } from "./rootTemplate";
 import { privacyControllers } from "./app/modules/Settings/privacy/Privacy.controller";
 import { logHttpRequests } from "./logger/logger";
-import { stripeWebhookHandler } from "./app/utils/stripe/stripeWebhook";
+import {
+  stripeConnectWebhookHandler,
+  stripeWebhookHandler,
+} from "./app/utils/stripe/stripeWebhook";
 const app: Application = express();
 
 app.post(
-  "/webhook",
+  "/api/v1/payments/webhook",
   express.raw({ type: "application/json" }),
   stripeWebhookHandler,
+);
+// ─── Webhook 2 — Connect (provider onboarding) ───────────────────────────────
+app.post(
+  "/api/v1/payments/webhook-connect",
+  express.raw({ type: "application/json" }),
+  stripeConnectWebhookHandler,
 );
 
 app.use(logHttpRequests);
