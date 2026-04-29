@@ -34,11 +34,26 @@ const capturePayment = catchAsync(async (req, res) => {
   });
 });
 
+const cancelPayment = catchAsync(async (req, res) => {
+  const result = await paymentServices.cancelPayment(
+    req.body.jobId,
+    req.body.reason,
+  );
+
+  sendResponse(res, {
+    statusCode: HttpStatus.OK,
+    success: true,
+    message: "Payment cancelled successfully",
+    data: result,
+  });
+});
+
 const refundPayment = catchAsync(async (req, res) => {
   const result = await paymentServices.refundPayment(
     req.body.jobId,
     req.body.refundAmount,
     req.body.refundReason,
+    req.body.reverseProviderTransfer ?? true,
   );
 
   sendResponse(res, {
@@ -69,4 +84,5 @@ export const paymentControllers = {
   capturePayment,
   refundPayment,
   getPaymentHistory,
+  cancelPayment,
 };

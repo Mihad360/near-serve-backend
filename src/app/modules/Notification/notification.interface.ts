@@ -1,10 +1,34 @@
 import { Types } from "mongoose";
 
 export interface INotification {
-  sender: Types.ObjectId;
-  recipient?: Types.ObjectId; // The admin's user ID or a role
-  type: "user_registration" | "user_login" | "user_join" | "message"; // Type of notification
-  message: string; // Message content
-  isRead?: boolean; // To mark the notification as read or unread
-  createdAt?: Date; // Timestamp of when the notification was created
+  _id?: Types.ObjectId;
+  sender?: Types.ObjectId | null;
+  recipient: Types.ObjectId;
+  type:
+    | "user_registration"
+    | "new_bid"
+    | "bid_accepted"
+    | "bid_rejected"
+    | "bid_withdrawn"
+    | "job_status_changed"
+    | "new_job_posted"
+    | "payment_captured"
+    | "payment_refunded"
+    | "provider_approved"
+    | "message";
+  title: string;
+  message: string;
+  data?: Record<string, unknown>; // extra info like jobId, bidId
+  isRead?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface SendNotificationPayload {
+  recipientId: Types.ObjectId | string;
+  senderId?: Types.ObjectId | string;
+  type: INotification["type"];
+  title: string;
+  message: string;
+  data?: Record<string, unknown>;
 }

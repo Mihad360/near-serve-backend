@@ -71,10 +71,23 @@ const checkStripeAccountStatus = catchAsync(async (req, res) => {
   });
 });
 
+const getStripeDashboardLink = catchAsync(async (req, res) => {
+  const result = await providerServices.getStripeDashboardLink(
+    req.user as JwtPayload,
+  );
+  sendResponse(res, {
+    statusCode: HttpStatus.OK,
+    success: true,
+    message: "Dashboard link generated",
+    data: result,
+  });
+});
+
 export const providerControllers = {
   getProviderById,
   searchNearbyProviders,
   createStripeAccount,
   getStripeOnboardingLink,
   checkStripeAccountStatus,
+  getStripeDashboardLink,
 };

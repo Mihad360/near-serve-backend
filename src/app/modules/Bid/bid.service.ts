@@ -11,6 +11,7 @@ import { JobModel } from "../Jobs/job.model";
 import { ProviderModel } from "../Providers/provider.model";
 import { UserModel } from "../User/user.model";
 import { ConversationModel } from "../Conversation/conversation.model";
+import { sendNotification } from "../Notification/notification.utils";
 
 const submitBid = async (
   user: JwtPayload,
@@ -101,6 +102,18 @@ const submitBid = async (
       { new: true },
     );
   }
+
+  await sendNotification({
+    recipientId: job.customerId,
+    senderId: userId,
+    type: "new_bid",
+    title: "New Bid Received",
+    message: `A provider submitted a bid of $${payload.price} on your job "${job.title}"`,
+    data: {
+      jobId: job._id.toString(),
+      bidId: bid._id.toString(),
+    },
+  });
 
   return bid;
 };
@@ -227,6 +240,40 @@ const acceptBid = async (user: JwtPayload, bidId: string) => {
 
   if (!conversation) {
     throw new AppError(HttpStatus.BAD_REQUEST, "conversation create failed");
+  }
+
+  // notify accepted provider
+  await sendNotification({
+    recipientId: providerDoc.userId,
+    senderId: customerId,
+    type: "bid_accepted",
+    title: "Your Bid Was Accepted!",
+    message: `Your bid has been accepted. Get ready for the job.`,
+    data: {
+      jobId: job._id.toString(),
+      bidId: bid._id.toString(),
+    },
+  });
+
+  // notify all rejected providers
+  const rejectedBids = await BidModel.find({
+    jobId: bid.jobId,
+    status: "rejected",
+  });
+
+  for (const rejectedBid of rejectedBids) {
+    const rejectedProvider = await ProviderModel.findById(
+      rejectedBid.providerId,
+    );
+    if (rejectedProvider) {
+      await sendNotification({
+        recipientId: rejectedProvider.userId,
+        type: "bid_rejected",
+        title: "Bid Not Selected",
+        message: `Another provider was selected for this job.`,
+        data: { jobId: job._id.toString() },
+      });
+    }
   }
 
   return updatedJob;

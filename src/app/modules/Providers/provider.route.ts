@@ -19,6 +19,11 @@ router.get(
   auth("provider"),
   providerControllers.checkStripeAccountStatus,
 );
+router.get(
+  "/stripe/dashboard-link",
+  auth("provider"),
+  providerControllers.getStripeDashboardLink,
+);
 router.post(
   "/stripe/create-account",
   auth("provider"),

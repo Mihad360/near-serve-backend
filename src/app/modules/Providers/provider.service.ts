@@ -173,10 +173,32 @@ const checkStripeAccountStatus = async (user: JwtPayload) => {
   };
 };
 
+// ─── Get Provider Stripe Dashboard Link ───────────────────────────────────────
+const getStripeDashboardLink = async (user: JwtPayload) => {
+  const userId = new Types.ObjectId(user.user);
+
+  const provider = await ProviderModel.findOne({ userId });
+  if (!provider) {
+    throw new AppError(HttpStatus.NOT_FOUND, "Provider profile not found");
+  }
+
+  if (!provider.stripeAccountId) {
+    throw new AppError(HttpStatus.BAD_REQUEST, "No Stripe account found");
+  }
+
+  // generate login link to provider's Stripe Express dashboard
+  const loginLink = await stripe.accounts.createLoginLink(
+    provider.stripeAccountId,
+  );
+
+  return { url: loginLink.url };
+};
+
 export const providerServices = {
   getProviderById,
   searchNearbyProviders,
   createStripeAccount,
   getStripeOnboardingLink,
   checkStripeAccountStatus,
+  getStripeDashboardLink,
 };

@@ -7,6 +7,7 @@ import QueryBuilder from "../../../builder/QueryBuilder";
 import { IJob } from "./job.interface";
 import { ProviderModel } from "../Providers/provider.model";
 import { UserModel } from "../User/user.model";
+import { sendNotification } from "../Notification/notification.utils";
 
 // ─── Create Job (customer) ────────────────────────────────────────────────────
 const createJob = async (user: JwtPayload, payload: Partial<IJob>) => {
@@ -20,6 +21,26 @@ const createJob = async (user: JwtPayload, payload: Partial<IJob>) => {
     customerId,
     expiresAt,
   });
+
+  const matchingProviders = await ProviderModel.find({
+    categories: job.category,
+    isApproved: true, // only approved providers
+  });
+
+  // notify each matching provider
+  for (const provider of matchingProviders) {
+    await sendNotification({
+      recipientId: provider.userId,
+      type: "new_job_posted",
+      title: "New Job Available",
+      message: `A new ${job.category} job has been posted near you. Budget: $${job.budget}`,
+      data: {
+        jobId: job._id.toString(),
+        category: job.category,
+        budget: job.budget,
+      },
+    });
+  }
 
   return job;
 };
@@ -236,6 +257,46 @@ const updateJobStatus = async (
     { $set: { status: newStatus } },
     { new: true },
   );
+
+  // after status update — notify relevant party
+  if (newStatus === "in_progress") {
+    // notify customer that provider is on the way
+    await sendNotification({
+      recipientId: job.customerId,
+      type: "job_status_changed",
+      title: "Provider is On The Way",
+      message: `Your provider has started the job and is on their way.`,
+      data: { jobId: jobId, status: "in_progress" },
+    });
+  }
+
+  if (newStatus === "completed") {
+    // notify provider that job is marked complete
+    const provider = await ProviderModel.findById(job.selectedProvider);
+    if (provider) {
+      await sendNotification({
+        recipientId: provider.userId,
+        type: "job_status_changed",
+        title: "Job Completed",
+        message: `The customer has marked the job as completed.`,
+        data: { jobId: jobId, status: "completed" },
+      });
+    }
+  }
+
+  if (newStatus === "disputed") {
+    // notify provider about dispute
+    const provider = await ProviderModel.findById(job.selectedProvider);
+    if (provider) {
+      await sendNotification({
+        recipientId: provider.userId,
+        type: "job_status_changed",
+        title: "Dispute Raised",
+        message: `The customer has raised a dispute for this job.`,
+        data: { jobId: jobId, status: "disputed" },
+      });
+    }
+  }
 
   // ─── Update provider stats when job completed ──────────────────────────────
   if (newStatus === "completed" && job.selectedProvider) {

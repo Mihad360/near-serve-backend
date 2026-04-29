@@ -3,6 +3,7 @@ import AppError from "../../erros/AppError";
 import { ProviderModel } from "../Providers/provider.model";
 import QueryBuilder from "../../../builder/QueryBuilder";
 import { UserModel } from "../User/user.model";
+import { sendNotification } from "../Notification/notification.utils";
 
 const approveProvider = async (providerId: string) => {
   const provider = await ProviderModel.findById(providerId);
@@ -20,6 +21,15 @@ const approveProvider = async (providerId: string) => {
   );
   if (!updateProvider) {
     throw new AppError(HttpStatus.NOT_FOUND, "Provider approve failed");
+  }
+  if (updateProvider) {
+    await sendNotification({
+      recipientId: updateProvider._id,
+      type: "provider_approved",
+      title: "Account Approved!",
+      message: `Your provider account has been approved. You can now receive jobs.`,
+      data: {},
+    });
   }
   return updateProvider;
 };

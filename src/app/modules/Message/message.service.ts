@@ -9,6 +9,8 @@ import AppError from "../../erros/AppError";
 import QueryBuilder from "../../../builder/QueryBuilder";
 import { sendFileToCloudinary } from "../../utils/sendImageToCloudinary";
 import { IMessage } from "./message.interface";
+import { UserModel } from "../User/user.model";
+import { sendNotification } from "../Notification/notification.utils";
 
 // ─── Helper — verify sender is part of conversation ───────────────────────────
 const verifyParticipant = async (
@@ -35,6 +37,16 @@ const verifyParticipant = async (
   return conversation;
 };
 
+// ─── Helper — get the other participant in conversation ───────────────────────
+const getOtherParticipant = (
+  conversation: { customerId: Types.ObjectId; providerId: Types.ObjectId },
+  senderId: Types.ObjectId,
+): Types.ObjectId => {
+  return conversation.customerId.equals(senderId)
+    ? conversation.providerId
+    : conversation.customerId;
+};
+
 // ─── Get Messages ─────────────────────────────────────────────────────────────
 const getMessages = async (
   user: JwtPayload,
@@ -44,8 +56,17 @@ const getMessages = async (
   const userId = new Types.ObjectId(user.user);
   const convId = new Types.ObjectId(conversationId);
 
-  // verify participant
   await verifyParticipant(convId, userId);
+
+  // mark as read first
+  await MessageModel.updateMany(
+    {
+      conversationId: convId,
+      senderId: { $ne: userId },
+      isRead: false,
+    },
+    { $set: { isRead: true } },
+  );
 
   const messageQuery = new QueryBuilder(
     MessageModel.find({
@@ -62,16 +83,6 @@ const getMessages = async (
   const meta = await messageQuery.countTotal();
   const result = await messageQuery.modelQuery;
 
-  // mark all unread messages as read
-  await MessageModel.updateMany(
-    {
-      conversationId: convId,
-      senderId: { $ne: userId },
-      isRead: false,
-    },
-    { $set: { isRead: true } },
-  );
-
   return { meta, result };
 };
 
@@ -84,10 +95,8 @@ const sendMessage = async (
   const userId = new Types.ObjectId(user.user);
   const convId = new Types.ObjectId(conversationId);
 
-  // verify participant
-  await verifyParticipant(convId, userId);
+  const conversation = await verifyParticipant(convId, userId);
 
-  // must have content for text message
   if (!payload.content || !payload.content.trim()) {
     throw new AppError(HttpStatus.BAD_REQUEST, "Message content is required");
   }
@@ -99,7 +108,6 @@ const sendMessage = async (
     messageType: "text",
   });
 
-  // update conversation lastMessage and lastMessageAt
   await ConversationModel.findByIdAndUpdate(
     convId,
     {
@@ -110,6 +118,28 @@ const sendMessage = async (
     },
     { new: true },
   );
+
+  // ─── Get sender name for notification ─────────────────────────────────────
+  const sender = await UserModel.findById(userId).select("name");
+  const recipientId = getOtherParticipant(conversation, userId);
+
+  // ─── Notify other participant — socket + firebase ─────────────────────────
+  try {
+    await sendNotification({
+      recipientId,
+      senderId: userId,
+      type: "message",
+      title: `New message from ${sender?.name || "Someone"}`,
+      message: payload.content.trim(),
+      data: {
+        conversationId: convId.toString(),
+        messageId: message._id?.toString(),
+        messageType: "text",
+      },
+    });
+  } catch (err) {
+    console.log("Message notification failed:", err);
+  }
 
   return message;
 };
@@ -124,13 +154,12 @@ const sendAttachment = async (
   const userId = new Types.ObjectId(user.user);
   const convId = new Types.ObjectId(conversationId);
 
-  await verifyParticipant(convId, userId);
+  const conversation = await verifyParticipant(convId, userId);
 
   if (!files || !files.length) {
     throw new AppError(HttpStatus.BAD_REQUEST, "At least one file is required");
   }
 
-  // ─── Validate all files first before uploading anything ───────────────────
   const allowedImageTypes = [
     "image/jpeg",
     "image/png",
@@ -146,7 +175,7 @@ const sendAttachment = async (
     "audio/mpeg",
     "audio/mp3",
     "audio/wav",
-    "audio/x-wav", // ✅ add this
+    "audio/x-wav",
     "audio/wave",
     "audio/ogg",
     "audio/webm",
@@ -154,7 +183,6 @@ const sendAttachment = async (
     "audio/x-m4a",
   ];
 
-  // audio — strictly one file only
   const hasAudio = files.some((f) => f.mimetype.startsWith("audio/"));
   if (hasAudio && files.length > 1) {
     throw new AppError(
@@ -163,7 +191,6 @@ const sendAttachment = async (
     );
   }
 
-  // validate each file mimetype
   for (const file of files) {
     const isImage = allowedImageTypes.includes(file.mimetype);
     const isDoc = allowedDocTypes.includes(file.mimetype);
@@ -177,7 +204,6 @@ const sendAttachment = async (
     }
   }
 
-  // mixed types not allowed — cannot send image and document together
   const allImages = files.every((f) => f.mimetype.startsWith("image/"));
   const allDocs = files.every((f) => allowedDocTypes.includes(f.mimetype));
   const allAudio = files.every((f) => f.mimetype.startsWith("audio/"));
@@ -196,21 +222,18 @@ const sendAttachment = async (
     );
   }
 
-  // ─── Determine messageType ─────────────────────────────────────────────────
   const messageType: IMessage["messageType"] = allImages
     ? "image"
     : allAudio
       ? "audio"
       : "document";
 
-  // ─── Upload all files to Cloudinary in parallel ───────────────────────────
   const uploadResults = await Promise.all(
     files.map((file) =>
       sendFileToCloudinary(file.buffer, file.originalname, file.mimetype),
     ),
   );
 
-  // ─── Build attachments array ───────────────────────────────────────────────
   const attachments = uploadResults.map((result, index) => ({
     url: result.secure_url,
     type:
@@ -223,7 +246,6 @@ const sendAttachment = async (
     size: files[index].size,
   }));
 
-  // ─── Create message ────────────────────────────────────────────────────────
   const message = await MessageModel.create({
     conversationId: convId,
     senderId: userId,
@@ -232,7 +254,6 @@ const sendAttachment = async (
     attachments,
   });
 
-  // ─── Update conversation preview ───────────────────────────────────────────
   const countText = files.length > 1 ? ` (${files.length})` : "";
   const lastMessagePreview =
     messageType === "image"
@@ -252,6 +273,30 @@ const sendAttachment = async (
     { new: true },
   );
 
+  // ─── Get sender name for notification ─────────────────────────────────────
+  const sender = await UserModel.findById(userId).select("name");
+  const recipientId = getOtherParticipant(conversation, userId);
+
+  // ─── Notify other participant — socket + firebase ─────────────────────────
+  try {
+    const notifMessage = content?.trim() || lastMessagePreview;
+
+    await sendNotification({
+      recipientId,
+      senderId: userId,
+      type: "message",
+      title: `New message from ${sender?.name || "Someone"}`,
+      message: notifMessage,
+      data: {
+        conversationId: convId.toString(),
+        messageId: message._id?.toString(),
+        messageType,
+      },
+    });
+  } catch (err) {
+    console.log("Attachment notification failed:", err);
+  }
+
   return message;
 };
 
@@ -265,7 +310,6 @@ const deleteMessage = async (user: JwtPayload, messageId: string) => {
     throw new AppError(HttpStatus.NOT_FOUND, "Message not found");
   }
 
-  // only sender can delete their own message
   if (!message.senderId.equals(userId)) {
     throw new AppError(
       HttpStatus.FORBIDDEN,

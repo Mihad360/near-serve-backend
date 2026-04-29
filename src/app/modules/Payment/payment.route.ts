@@ -23,6 +23,9 @@ router.get(
 );
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
+// ─── Admin ────────────────────────────────────────────────────────────────────
+router.post("/cancel", auth("admin"), paymentControllers.cancelPayment);
+
 router.post("/refund", auth("admin"), paymentControllers.refundPayment);
 
 export const paymentRoutes = router;

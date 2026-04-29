@@ -53,6 +53,15 @@ const paymentSchema = new Schema<IPayment>(
       type: Number,
       default: 0,
     },
+    // payment.model.ts — add these
+    stripeProcessingFee: {
+      type: Number,
+      default: 0,
+    },
+    actualCommission: {
+      type: Number,
+      default: 0,
+    },
     refundAmount: {
       type: Number,
       default: null,

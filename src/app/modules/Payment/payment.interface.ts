@@ -14,6 +14,8 @@ export interface IPayment {
   commissionRate?: number; // NEW — percentage e.g. 10
   commissionAmount?: number; // NEW — admin earnings e.g. 10
   providerPayout?: number; // NEW — provider gets e.g. 90
+  stripeProcessingFee?: number; // what Stripe took
+  actualCommission?: number;
   refundAmount?: number;
   refundReason?: string;
   refundedAt?: Date;
