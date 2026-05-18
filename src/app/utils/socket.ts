@@ -7,6 +7,7 @@ import AppError from "../erros/AppError";
 import { verifyToken } from "./jwt/jwt";
 import { UserModel } from "../modules/User/user.model";
 import config from "../config";
+import { JobModel } from "../modules/Jobs/job.model";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const app: Application = express();
@@ -112,6 +113,52 @@ export const initSocketIO = async (server: HttpServer): Promise<void> => {
         `Registered user ${socket.user._id.toString()} with socket ID: ${socket.id}`,
       );
     }
+
+    // ─── Provider sends location update ──────────────────────────────────────────
+    socket.on(
+      "provider_location_update",
+      async ({ jobId, latitude, longitude }) => {
+        if (!socket.user) return;
+        console.log(jobId, latitude, longitude);
+        const job = await JobModel.findById(jobId).select("customerId status");
+
+        if (!job || job.status !== "in_progress") return;
+
+        // find customer socket
+        const customerSocket = connectedUsers.get(job.customerId.toString());
+
+        if (customerSocket && io) {
+          // emit to customer with dynamic event
+          io.to(customerSocket.socketID).emit(
+            `provider_location-${job.customerId.toString()}`,
+            {
+              jobId,
+              latitude,
+              longitude,
+              timestamp: new Date(),
+            },
+          );
+        }
+      },
+    );
+
+    // ─── Provider stops sharing location ─────────────────────────────────────────
+    socket.on("provider_location_stop", async ({ jobId }) => {
+      if (!socket.user) return;
+
+      const job = await JobModel.findById(jobId).select("customerId");
+
+      if (!job) return;
+
+      const customerSocket = connectedUsers.get(job.customerId.toString());
+
+      if (customerSocket && io) {
+        io.to(customerSocket.socketID).emit(
+          `provider_location_stopped-${job.customerId.toString()}`,
+          { jobId },
+        );
+      }
+    });
 
     socket.on("disconnect", () => {
       console.log(

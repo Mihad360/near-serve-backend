@@ -40,17 +40,6 @@ const conversationSchema = new Schema<IConversation>(
   },
 );
 
-// ─── Indexes ──────────────────────────────────────────────────────────────────
-conversationSchema.index({ jobId: 1 });
-conversationSchema.index({ customerId: 1 });
-conversationSchema.index({ providerId: 1 });
-conversationSchema.index({ lastMessageAt: -1 }); // sort by latest message
-conversationSchema.index(
-  // one conversation per job
-  { jobId: 1, customerId: 1, providerId: 1 },
-  { unique: true },
-);
-
 // ─── Model ───────────────────────────────────────────────────────────────────
 export const ConversationModel = model<IConversation>(
   "Conversation",

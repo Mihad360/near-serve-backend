@@ -17,22 +17,28 @@ interface SendNotificationPayload {
 }
 
 // ─── Map each type to its specific socket event name ─────────────────────────
-const getSocketEvent = (type: INotification["type"]): string => {
+const getSocketEvent = (
+  type: INotification["type"],
+  recipientId: string,
+): string => {
   const eventMap: Record<INotification["type"], string> = {
-    new_bid: "new_bid",
-    bid_accepted: "bid_accepted",
-    bid_rejected: "bid_rejected",
-    bid_withdrawn: "bid_withdrawn",
-    job_status_changed: "job_status_changed",
-    new_job_posted: "new_job_posted",
-    payment_captured: "payment_captured",
-    payment_refunded: "payment_refunded",
-    provider_approved: "provider_approved",
-    message: "new_message",
-    user_registration: "user_registration",
+    new_bid: `new_bid-${recipientId}`,
+    bid_accepted: `bid_accepted-${recipientId}`,
+    bid_rejected: `bid_rejected-${recipientId}`,
+    bid_withdrawn: `bid_withdrawn-${recipientId}`,
+    job_status_changed: `job_status_changed-${recipientId}`,
+    new_job_posted: `new_job_posted-${recipientId}`,
+    payment_captured: `payment_captured-${recipientId}`,
+    payment_refunded: `payment_refunded-${recipientId}`,
+    provider_approved: `provider_approved-${recipientId}`,
+    provider_blocked: `provider_blocked-${recipientId}`,
+    user_blocked: `user_blocked-${recipientId}`,
+    user_unblocked: `user_unblocked-${recipientId}`,
+    message: `new_message-${recipientId}`,
+    user_registration: `user_registration-${recipientId}`,
   };
 
-  return eventMap[type] || "notification";
+  return eventMap[type] || `notification-${recipientId}`;
 };
 
 export const sendNotification = async (payload: SendNotificationPayload) => {
@@ -53,9 +59,9 @@ export const sendNotification = async (payload: SendNotificationPayload) => {
   // ─── 2. Socket.io — emit specific event ──────────────────────────────────
   const connectedUser = connectedUsers.get(recipientIdStr);
   if (connectedUser && io) {
-    const socketEvent = getSocketEvent(type);
+    const socketEvent = getSocketEvent(type, recipientIdStr);
 
-    io.to(connectedUser.socketID).emit(socketEvent, {
+    io.to(connectedUser?.socketID).emit(socketEvent, {
       type,
       title,
       message,

@@ -15,6 +15,9 @@ export interface INotification {
     | "payment_captured"
     | "payment_refunded"
     | "provider_approved"
+    | "provider_blocked"
+    | "user_blocked"
+    | "user_unblocked"
     | "message";
   title: string;
   message: string;

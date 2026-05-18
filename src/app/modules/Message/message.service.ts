@@ -122,7 +122,7 @@ const sendMessage = async (
   // ─── Get sender name for notification ─────────────────────────────────────
   const sender = await UserModel.findById(userId).select("name");
   const recipientId = getOtherParticipant(conversation, userId);
-
+  
   // ─── Notify other participant — socket + firebase ─────────────────────────
   try {
     await sendNotification({

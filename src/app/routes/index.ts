@@ -9,6 +9,8 @@ import { conversationRoutes } from "../modules/Conversation/conversation.route";
 import { messageRoutes } from "../modules/Message/message.route";
 import { reviewRoutes } from "../modules/Review/review.route";
 import { paymentRoutes } from "../modules/Payment/payment.route";
+import { aiRoutes } from "../modules/Ai/ai.route";
+import { analyticsRoutes } from "../modules/Analytics/analytics.route";
 
 const router = Router();
 
@@ -52,6 +54,14 @@ const moduleRoutes = [
   {
     path: "/payment",
     route: paymentRoutes,
+  },
+  {
+    path: "/ai",
+    route: aiRoutes,
+  },
+  {
+    path: "/analytics",
+    route: analyticsRoutes,
   },
 ];
 
